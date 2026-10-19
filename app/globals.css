@@ -460,6 +460,12 @@ h4 {
   }
 }
 
+@keyframes medallion-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+
 @keyframes pulse-ring {
   from {
     transform: scale(0.9);

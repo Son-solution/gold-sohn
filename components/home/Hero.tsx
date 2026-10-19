@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Play } from "lucide-react";
-import { useRef } from "react";
+import { ArrowRight, Banknote, Play, Scale, ShieldCheck } from "lucide-react";
+import { useId, useRef } from "react";
 import { EASE, MOTION_OK, gsap, useGSAP } from "@/lib/gsap";
 import { images } from "@/lib/images";
 import { site } from "@/lib/site";
@@ -67,6 +67,47 @@ function tiltParallax(el: HTMLElement, par: Element) {
   };
 }
 
+/** TEMPORARY diagnostics for the tilt parallax – open the page with ?tilt-debug. Remove after testing. */
+function tiltDebug(par: Element | undefined) {
+  const box = document.createElement("pre");
+  box.style.cssText =
+    "position:fixed;left:8px;right:8px;bottom:8px;z-index:9999;margin:0;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.95);color:#2b2825;font:12px/1.5 ui-monospace,monospace;box-shadow:0 0 0 1px #C5A064;white-space:pre-wrap;pointer-events:none";
+  document.body.appendChild(box);
+  const mq = (s: string) => window.matchMedia(s).matches;
+  const DOE = window.DeviceOrientationEvent as (typeof DeviceOrientationEvent & { requestPermission?: unknown }) | undefined;
+  let count = 0;
+  let beta: number | null = null;
+  let gamma: number | null = null;
+  const render = () => {
+    box.textContent = [
+      "TILT DEBUG v2",
+      `https: ${window.isSecureContext}  sensor API: ${!!DOE}  iOS-prompt: ${typeof DOE?.requestPermission === "function"}`,
+      `motion ok: ${mq("(prefers-reduced-motion: no-preference)")}  touch: ${mq("(any-pointer: coarse)")}  hover: ${mq("(hover: hover)")}`,
+      `events: ${count}  beta: ${beta?.toFixed(1) ?? "null"}  gamma: ${gamma?.toFixed(1) ?? "null"}`,
+      `image transform: ${par ? getComputedStyle(par).transform : "no element"}`,
+    ].join("\n");
+  };
+  const onTilt = (e: DeviceOrientationEvent) => {
+    count++;
+    beta = e.beta;
+    gamma = e.gamma;
+  };
+  window.addEventListener("deviceorientation", onTilt);
+  const id = window.setInterval(render, 250);
+  render();
+  return () => {
+    window.removeEventListener("deviceorientation", onTilt);
+    window.clearInterval(id);
+    box.remove();
+  };
+}
+
+const promises = [
+  { icon: Scale, label: "Kostenlose Bewertung" },
+  { icon: ShieldCheck, label: "Versicherter Versand" },
+  { icon: Banknote, label: "Sofortige Auszahlung" },
+];
+
 const headline = [
   [{ t: "Ihr", em: false }, { t: "Gold.", em: false }],
   [{ t: "Unser", em: true }, { t: "Versprechen.", em: true }],
@@ -79,6 +120,7 @@ const headline = [
  */
 export function Hero() {
   const root = useRef<HTMLElement>(null);
+  const ringId = `hero-ring-${useId().replace(/[^\w-]/g, "")}`;
 
   useGSAP(
     () => {
@@ -86,6 +128,7 @@ export function Hero() {
       if (!el) return;
       const q = gsap.utils.selector(el);
       const mm = gsap.matchMedia();
+      const stopDebug = window.location.search.includes("tilt-debug") ? tiltDebug(q("[data-par]")[0]) : null;
 
       mm.add({ motion: MOTION_OK, desk: "(min-width: 1024px)", hover: "(hover: hover)", touch: "(any-pointer: coarse)" }, (ctx) => {
         const { motion, desk, hover, touch } = ctx.conditions as { motion: boolean; desk: boolean; hover: boolean; touch: boolean };
@@ -103,8 +146,9 @@ export function Hero() {
           .from(q("[data-word]"), { yPercent: 118, rotate: 5, duration: 1.5, stagger: 0.08 }, 0.85)
           .from(q("[data-lead]"), { y: 26, autoAlpha: 0, duration: 1.2 }, 1.35)
           .from(q("[data-cta] > *"), { y: 26, autoAlpha: 0, duration: 1.1, stagger: 0.1 }, 1.5)
-          .from(q("[data-strip] > *"), { y: 40, autoAlpha: 0, duration: 1.1, stagger: 0.08 }, 1.6)
-          .from(q("[data-video]"), { x: 30, autoAlpha: 0, duration: 1.1 }, 1.8);
+          .from(q("[data-strip]"), { autoAlpha: 0, duration: 1 }, 1.6)
+          .from(q("[data-strip] > *"), { y: 18, autoAlpha: 0, duration: 1.1, stagger: 0.09 }, 1.65)
+          .from(q("[data-video]"), { scale: 0.55, rotate: -40, autoAlpha: 0, duration: 1.6 }, 1.9);
 
         // Window light drifting across the wall + slow camera move
         gsap.to(q("[data-light-b]"), { opacity: 1, duration: 9, ease: "sine.inOut", repeat: -1, yoyo: true, delay: 3 });
@@ -173,7 +217,10 @@ export function Hero() {
           cleanups.forEach((fn) => fn());
         };
       });
-      return () => mm.revert();
+      return () => {
+        mm.revert();
+        stopDebug?.();
+      };
     },
     { scope: root },
   );
@@ -222,11 +269,39 @@ export function Hero() {
           aria-hidden
           className="absolute inset-0 bg-[linear-gradient(180deg,rgba(246,242,235,1)_0%,rgba(246,242,235,0)_22%,rgba(246,242,235,0)_85%,rgba(246,242,235,.5)_100%)] lg:bg-[linear-gradient(90deg,rgba(246,242,235,.95)_0%,rgba(246,242,235,.84)_24%,rgba(246,242,235,.3)_44%,rgba(246,242,235,0)_58%),linear-gradient(180deg,rgba(246,242,235,.65)_0%,rgba(246,242,235,0)_16%,rgba(246,242,235,0)_80%,rgba(246,242,235,.55)_100%)]"
         />
+
+        {/* Explainer-video medallion: play button ringed by slowly turning text */}
+        <div
+          data-foot
+          className="absolute bottom-14 right-5 z-10 sm:bottom-16 sm:right-10 lg:bottom-[13%] lg:right-[max(40px,calc((100vw-1320px)/2+40px))]"
+        >
+          <Link
+            data-video
+            href="/so-funktionierts/"
+            aria-label={`Erklärvideo ansehen: So funktioniert der Goldankauf, ${site.videoDurationLabel}`}
+            className="glass group relative block size-[104px] rounded-full shadow-[0_30px_60px_-28px_rgba(80,60,30,.55)] sm:size-[124px] xl:size-[148px]"
+          >
+            <svg aria-hidden viewBox="0 0 100 100" className="absolute inset-0 size-full animate-[medallion-spin_26s_linear_infinite]">
+              <defs>
+                <path id={ringId} d="M50,50 m-37,0 a37,37 0 1,1 74,0 a37,37 0 1,1 -74,0" />
+              </defs>
+              <text className="fill-[#5E4520] font-sans text-[7.4px] font-medium uppercase">
+                <textPath href={`#${ringId}`} textLength="230" lengthAdjust="spacing">
+                  Erklärvideo · {site.videoDurationLabel} · So funktioniert’s ·
+                </textPath>
+              </text>
+            </svg>
+            <span className="absolute inset-[29%] flex items-center justify-center rounded-full bg-gold text-[#241F19] shadow-[0_12px_24px_-10px_rgba(140,104,48,.8),inset_0_1px_0_rgba(255,255,255,.45)] transition-[scale] duration-700 ease-[cubic-bezier(.16,1,.3,1)] group-hover:scale-110">
+              <span aria-hidden className="absolute -inset-1.5 rounded-full border border-gold/60 [animation:pulse-ring_2.8s_cubic-bezier(.16,1,.3,1)_infinite]" />
+              <Play aria-hidden className="ml-0.5 size-4 fill-current xl:size-5" />
+            </span>
+          </Link>
+        </div>
       </div>
 
       {/* Copy */}
-      <div data-copy className="container-luxe relative order-1 flex flex-col justify-center pb-10 pt-28 sm:pb-12 sm:pt-36 lg:flex-1 lg:pb-14 lg:pt-32">
-        <div className="m-center flex max-w-[620px] flex-col gap-5 max-sm:mx-auto sm:gap-7 lg:gap-8">
+      <div data-copy className="container-luxe relative order-1 flex flex-col justify-center pb-10 pt-28 sm:pb-12 sm:pt-36 lg:pointer-events-none lg:flex-1 lg:pb-24 lg:pt-32">
+        <div className="m-center pointer-events-auto flex max-w-[620px] flex-col gap-5 max-sm:mx-auto sm:gap-7 lg:gap-8">
           <span data-eyebrow className="eyebrow !text-[#5E4520]">
             Goldankauf &amp; Edelmetallankauf
           </span>
@@ -257,43 +332,20 @@ export function Hero() {
               Versandtasche anfordern
             </Link>
           </div>
-        </div>
-      </div>
-
-      {/* Trust strip + video link */}
-      <div data-foot className="relative order-3 z-10 lg:pb-11">
-        <div className="container-luxe flex flex-col gap-0 lg:flex-row lg:items-end lg:justify-between lg:gap-6">
-          <div data-strip className="glass mb-14 flex flex-col rounded-[22px] sm:mb-16 sm:flex-row lg:mb-0 lg:min-w-0 lg:max-w-[880px] lg:flex-1 lg:rounded-3xl">
-            {[
-              ["Bewertung", "Kostenlos & unverbindlich"],
-              ["Versand", "Versicherte Versandtasche"],
-              ["Auszahlung", "Sofort nach Zustimmung"],
-            ].map(([k, v], i) => (
-              <div
-                key={k}
-                className={`flex flex-col items-center gap-1 px-5 py-3.5 text-center sm:flex-1 sm:items-start sm:justify-start sm:gap-1.5 sm:px-6 sm:py-5 sm:text-left xl:px-8 xl:py-6 ${
-                  i ? "border-t border-[rgba(197,160,100,.32)] sm:border-l sm:border-t-0" : ""
-                }`}
-              >
-                <span className="text-[11px] font-medium uppercase tracking-[0.2em] text-[#5E4520]">{k}</span>
-                <b className="text-balance font-serif text-[16px] font-normal leading-snug text-[#24211E] sm:text-[18px] xl:text-[19px]">{v}</b>
-              </div>
-            ))}
-          </div>
-          <Link
-            data-video
-            href="/so-funktionierts/"
-            className="glass order-first -mt-20 mb-6 flex w-fit max-w-full max-sm:self-center items-center gap-3.5 rounded-full py-2 pl-2 pr-5 shadow-[0_20px_40px_-24px_rgba(80,60,30,.45)] transition-[translate] duration-700 hover:-translate-y-1 sm:-mt-24 sm:gap-4 sm:py-2.5 sm:pl-2.5 sm:pr-6 lg:order-none lg:mt-0 lg:mb-1.5 lg:shrink-0"
+          <ul
+            data-strip
+            aria-label="Ihre Vorteile"
+            className="flex flex-wrap justify-center gap-x-5 gap-y-3 border-t border-[rgba(197,160,100,.45)] pt-5 sm:justify-start sm:gap-x-7 sm:pt-6"
           >
-            <span className="relative flex size-11 shrink-0 items-center justify-center rounded-full bg-gold text-[#241F19] sm:size-12">
-              <span aria-hidden className="absolute -inset-1.5 rounded-full border border-gold/70 [animation:pulse-ring_2.8s_cubic-bezier(.16,1,.3,1)_infinite]" />
-              <Play aria-hidden className="ml-0.5 size-4 fill-current" />
-            </span>
-            <span className="min-w-0">
-              <b className="block font-serif text-[15px] font-normal leading-snug text-[#24211E] sm:text-[17px]">So funktioniert der Goldankauf</b>
-              <small className="block text-[11px] uppercase tracking-[0.18em] text-[#5E4520]">Erklärvideo · {site.videoDurationLabel}</small>
-            </span>
-          </Link>
+            {promises.map(({ icon: Icon, label }) => (
+              <li key={label} className="flex items-center gap-2.5 text-[13.5px] font-medium text-[#3A342C] sm:text-[14px]">
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-white/75 text-gold-ink shadow-[inset_0_0_0_1px_rgba(197,160,100,.6)]">
+                  <Icon aria-hidden strokeWidth={1.6} className="size-3.5" />
+                </span>
+                {label}
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
     </section>
