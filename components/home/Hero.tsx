@@ -57,7 +57,57 @@ export function Hero() {
           gsap.to(q("[data-foot]"), { y: 60, autoAlpha: 0, ease: "none", scrollTrigger: { trigger: el, start: "30% top", end: "75% top", scrub: true } });
         }
 
-        if (!hover) return;
+        if (!hover) {
+          // Touch devices: the same soft parallax, driven by tilting the phone.
+          // iOS only exposes the sensor after a permission prompt – by decision we skip it there.
+          const DOE = window.DeviceOrientationEvent as (typeof DeviceOrientationEvent & { requestPermission?: unknown }) | undefined;
+          if (!DOE || typeof DOE.requestPermission === "function") return;
+
+          const par = q("[data-par]")[0];
+          const tx = gsap.quickTo(par, "x", { duration: 1.4, ease: "power3.out" });
+          const ty = gsap.quickTo(par, "y", { duration: 1.4, ease: "power3.out" });
+          let base: { x: number; y: number } | null = null;
+          let inView = true;
+
+          const onTilt = (e: DeviceOrientationEvent) => {
+            if (!inView || e.beta == null || e.gamma == null) return;
+            // Map device axes to screen axes for the current rotation.
+            const angle = window.screen.orientation?.angle ?? 0;
+            let x = e.gamma;
+            let y = e.beta;
+            if (angle === 90) [x, y] = [e.beta, -e.gamma];
+            else if (angle === 270) [x, y] = [-e.beta, e.gamma];
+            else if (angle === 180) [x, y] = [-e.gamma, -e.beta];
+
+            // Neutral position = how the phone is held; re-centre on sensor jumps (phone held upright).
+            if (!base || Math.abs(x - base.x) > 45 || Math.abs(y - base.y) > 45) base = { x, y };
+            // Slowly follow posture changes so the image never stays shifted.
+            base.x += (x - base.x) * 0.015;
+            base.y += (y - base.y) * 0.015;
+
+            const nx = gsap.utils.clamp(-1, 1, (x - base.x) / 18);
+            const ny = gsap.utils.clamp(-1, 1, (y - base.y) / 18);
+            tx(-nx * 24);
+            ty(-ny * 16);
+          };
+
+          // Only listen while the hero is on screen.
+          const io = new IntersectionObserver(([entry]) => {
+            inView = entry.isIntersecting;
+            if (!inView) {
+              base = null;
+              tx(0);
+              ty(0);
+            }
+          });
+          io.observe(el);
+          window.addEventListener("deviceorientation", onTilt);
+          return () => {
+            window.removeEventListener("deviceorientation", onTilt);
+            io.disconnect();
+          };
+        }
+
         const par = q("[data-par]")[0];
         const glow = q("[data-glow]")[0];
         const px = gsap.quickTo(par, "x", { duration: 1.6, ease: "power3.out" });
