@@ -8,6 +8,65 @@ import { EASE, MOTION_OK, gsap, useGSAP } from "@/lib/gsap";
 import { images } from "@/lib/images";
 import { site } from "@/lib/site";
 
+/**
+ * Touch devices: the hero image follows the phone's tilt (same soft parallax as the mouse).
+ * iOS only exposes the sensor after a permission prompt – by decision it is skipped there.
+ * Returns a cleanup function.
+ */
+function tiltParallax(el: HTMLElement, par: Element) {
+  const DOE = window.DeviceOrientationEvent as (typeof DeviceOrientationEvent & { requestPermission?: unknown }) | undefined;
+  if (!DOE || typeof DOE.requestPermission === "function") return () => {};
+
+  const tx = gsap.quickTo(par, "x", { duration: 0.9, ease: "power3.out" });
+  const ty = gsap.quickTo(par, "y", { duration: 0.9, ease: "power3.out" });
+  let base: { x: number; y: number } | null = null;
+  let last = 0;
+  let inView = true;
+
+  const onTilt = (e: DeviceOrientationEvent) => {
+    if (!inView || e.beta == null || e.gamma == null) return;
+    // Map device axes to screen axes for the current rotation.
+    const angle = window.screen.orientation?.angle ?? 0;
+    let x = e.gamma;
+    let y = e.beta;
+    if (angle === 90) [x, y] = [e.beta, -e.gamma];
+    else if (angle === 270) [x, y] = [-e.beta, e.gamma];
+    else if (angle === 180) [x, y] = [-e.gamma, -e.beta];
+
+    const now = performance.now();
+    // Neutral position = how the phone is held; re-centre on sensor jumps (phone held upright).
+    if (!base || Math.abs(x - base.x) > 45 || Math.abs(y - base.y) > 45) base = { x, y };
+    else {
+      // Follow posture changes over ~4 s (time-based, independent of the sensor's event rate).
+      const k = 1 - Math.exp(-(now - last) / 4000);
+      base.x += (x - base.x) * k;
+      base.y += (y - base.y) * k;
+    }
+    last = now;
+
+    const nx = gsap.utils.clamp(-1, 1, (x - base.x) / 15);
+    const ny = gsap.utils.clamp(-1, 1, (y - base.y) / 15);
+    tx(-nx * 26);
+    ty(-ny * 18);
+  };
+
+  // Only react while the hero is on screen.
+  const io = new IntersectionObserver(([entry]) => {
+    inView = entry.isIntersecting;
+    if (!inView) {
+      base = null;
+      tx(0);
+      ty(0);
+    }
+  });
+  io.observe(el);
+  window.addEventListener("deviceorientation", onTilt);
+  return () => {
+    window.removeEventListener("deviceorientation", onTilt);
+    io.disconnect();
+  };
+}
+
 const headline = [
   [{ t: "Ihr", em: false }, { t: "Gold.", em: false }],
   [{ t: "Unser", em: true }, { t: "Versprechen.", em: true }],
@@ -28,8 +87,8 @@ export function Hero() {
       const q = gsap.utils.selector(el);
       const mm = gsap.matchMedia();
 
-      mm.add({ motion: MOTION_OK, desk: "(min-width: 1024px)", hover: "(hover: hover)" }, (ctx) => {
-        const { motion, desk, hover } = ctx.conditions as { motion: boolean; desk: boolean; hover: boolean };
+      mm.add({ motion: MOTION_OK, desk: "(min-width: 1024px)", hover: "(hover: hover)", touch: "(any-pointer: coarse)" }, (ctx) => {
+        const { motion, desk, hover, touch } = ctx.conditions as { motion: boolean; desk: boolean; hover: boolean; touch: boolean };
         if (!motion) return;
 
         gsap
@@ -57,56 +116,9 @@ export function Hero() {
           gsap.to(q("[data-foot]"), { y: 60, autoAlpha: 0, ease: "none", scrollTrigger: { trigger: el, start: "30% top", end: "75% top", scrub: true } });
         }
 
-        if (!hover) {
-          // Touch devices: the same soft parallax, driven by tilting the phone.
-          // iOS only exposes the sensor after a permission prompt – by decision we skip it there.
-          const DOE = window.DeviceOrientationEvent as (typeof DeviceOrientationEvent & { requestPermission?: unknown }) | undefined;
-          if (!DOE || typeof DOE.requestPermission === "function") return;
-
-          const par = q("[data-par]")[0];
-          const tx = gsap.quickTo(par, "x", { duration: 1.4, ease: "power3.out" });
-          const ty = gsap.quickTo(par, "y", { duration: 1.4, ease: "power3.out" });
-          let base: { x: number; y: number } | null = null;
-          let inView = true;
-
-          const onTilt = (e: DeviceOrientationEvent) => {
-            if (!inView || e.beta == null || e.gamma == null) return;
-            // Map device axes to screen axes for the current rotation.
-            const angle = window.screen.orientation?.angle ?? 0;
-            let x = e.gamma;
-            let y = e.beta;
-            if (angle === 90) [x, y] = [e.beta, -e.gamma];
-            else if (angle === 270) [x, y] = [-e.beta, e.gamma];
-            else if (angle === 180) [x, y] = [-e.gamma, -e.beta];
-
-            // Neutral position = how the phone is held; re-centre on sensor jumps (phone held upright).
-            if (!base || Math.abs(x - base.x) > 45 || Math.abs(y - base.y) > 45) base = { x, y };
-            // Slowly follow posture changes so the image never stays shifted.
-            base.x += (x - base.x) * 0.015;
-            base.y += (y - base.y) * 0.015;
-
-            const nx = gsap.utils.clamp(-1, 1, (x - base.x) / 18);
-            const ny = gsap.utils.clamp(-1, 1, (y - base.y) / 18);
-            tx(-nx * 24);
-            ty(-ny * 16);
-          };
-
-          // Only listen while the hero is on screen.
-          const io = new IntersectionObserver(([entry]) => {
-            inView = entry.isIntersecting;
-            if (!inView) {
-              base = null;
-              tx(0);
-              ty(0);
-            }
-          });
-          io.observe(el);
-          window.addEventListener("deviceorientation", onTilt);
-          return () => {
-            window.removeEventListener("deviceorientation", onTilt);
-            io.disconnect();
-          };
-        }
+        const cleanups: (() => void)[] = [];
+        if (touch) cleanups.push(tiltParallax(el, q("[data-par]")[0]));
+        if (!hover) return () => cleanups.forEach((fn) => fn());
 
         const par = q("[data-par]")[0];
         const glow = q("[data-glow]")[0];
@@ -134,7 +146,7 @@ export function Hero() {
         el.addEventListener("mouseleave", onLeave);
 
         // Magnetic CTAs
-        const cleanups = q("[data-magnetic]").map((btn) => {
+        q("[data-magnetic]").forEach((btn) => {
           const bx = gsap.quickTo(btn, "x", { duration: 0.6, ease: "power3.out" });
           const by = gsap.quickTo(btn, "y", { duration: 0.6, ease: "power3.out" });
           const move = (e: MouseEvent) => {
@@ -148,10 +160,10 @@ export function Hero() {
           };
           btn.addEventListener("mousemove", move as EventListener);
           btn.addEventListener("mouseleave", leave);
-          return () => {
+          cleanups.push(() => {
             btn.removeEventListener("mousemove", move as EventListener);
             btn.removeEventListener("mouseleave", leave);
-          };
+          });
         });
 
         return () => {
