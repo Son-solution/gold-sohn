@@ -176,7 +176,8 @@ Alle Zugangsdaten stehen nur auf dem Server (`.env.local` bzw. Vercel). Nichts d
 ### Preise – `lib/prices/provider.ts`
 
 - **Ohne Konfiguration:** Demowerte aus `lib/prices/demo.ts` (Stand 18.10.2026, übernommen von gold-sohn.de/preise). Überall steht sichtbar „Demowerte – keine Live-Kurse“.
-- **Live:** `PRICE_API_URL` (+ optional `PRICE_API_KEY`) setzen. Der Endpunkt muss Ankaufspreise je Gramm im `PriceSnapshot`-Format liefern (Beispiel im Kommentar der Datei). Fällt die API aus, zeigt die Seite wieder Demowerte mit Hinweis – es werden nie Fantasiepreise als echt dargestellt.
+- **Live über Swissquote:** `PRICE_SOURCE=swissquote` setzen. Der Server rechnet den öffentlichen Swissquote-Börsenkurs (kein API-Key) mit den Margen aus `MARGIN_PERCENT` in `lib/prices/swissquote.ts` in Ankaufspreise um – höchstens eine Abfrage pro Minute, der Browser aktualisiert jede Minute. Bei Ausfall oder einem Sprung über 15 % bleiben die letzten gültigen Preise stehen. **Die Margen dort sind Startwerte – vor dem Livegang durch die eigenen ersetzen.**
+- **Live über eigenen Endpunkt:** `PRICE_API_URL` (+ optional `PRICE_API_KEY`) setzen. Der Endpunkt muss Ankaufspreise je Gramm im `PriceSnapshot`-Format liefern (Beispiel im Kommentar der Datei). Fällt die API aus, zeigt die Seite wieder Demowerte mit Hinweis – es werden nie Fantasiepreise als echt dargestellt.
 - Quelle für Live-Preise: der Preis-Feed der aktuellen WordPress-Seite oder ein kleiner Dienst, der einen Börsenkurs mit den Gold-Sohn-Margen in Ankaufspreise umrechnet.
 
 ### Formulare – `lib/forms/delivery.ts`

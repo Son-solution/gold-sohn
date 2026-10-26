@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { demoSnapshot } from "@/lib/prices/demo";
 import { priceSnapshotSchema, type PriceSnapshot } from "@/lib/prices/types";
 
-const REFRESH_MS = 5 * 60 * 1000;
+const REFRESH_MS = 60 * 1000;
 
 /**
  * Prices for client components. Starts with the clearly labelled demo snapshot

@@ -169,7 +169,7 @@ export function GoldCalculator({ initialMetal = "gold", initialPurity = "585", i
           <p className="mt-2.5 text-[13px] text-ink-2">
             Feinanteil: {formatNumber(result?.fineGrams ?? 0)} g von {formatNumber(grams)} g
           </p>
-          <p className="demo-tag mt-5">{snapshot.source === "demo" ? "Demowerte – keine Live-Kurse" : `Kurse vom ${snapshot.asOf}`}</p>
+          <p className="demo-tag mt-5">{snapshot.source === "demo" ? "Demowerte – keine Live-Kurse" : snapshot.note}</p>
         </div>
         <dl className="relative border-t border-[rgba(197,160,100,.32)]">
           {[
