@@ -5,6 +5,7 @@ import "server-only";
  *
  * 1) Resend (transactional e-mail, https://resend.com)
  *    RESEND_API_KEY, FORM_MAIL_FROM (verified sender), FORM_MAIL_TO (inbox)
+ *    The customer additionally receives a confirmation; their replies go to FORM_MAIL_TO.
  *
  * 2) Webhook (e.g. Make, Zapier, n8n, CRM, own backend)
  *    FORM_WEBHOOK_URL and optional FORM_WEBHOOK_SECRET (sent as X-Webhook-Secret)
@@ -19,7 +20,10 @@ export interface FormMessage {
   subject: string;
   replyTo: string;
   text: string;
+  html?: string;
   data: Record<string, unknown>;
+  /** Receipt for the customer. Only sent once the inbox mail was accepted; its failure never fails the request. */
+  confirmation?: { to: string; subject: string; text: string; html: string };
 }
 
 export function deliveryConfigured(): boolean {
@@ -34,19 +38,28 @@ export async function deliver(message: FormMessage): Promise<DeliveryResult> {
 
   try {
     if (RESEND_API_KEY && FORM_MAIL_FROM && FORM_MAIL_TO) {
-      const res = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          from: FORM_MAIL_FROM,
-          to: FORM_MAIL_TO.split(",").map((s) => s.trim()),
-          reply_to: message.replyTo,
-          subject: message.subject,
-          text: message.text,
-        }),
-        signal: AbortSignal.timeout(10000),
-      });
-      return res.ok ? "sent" : "failed";
+      const inbox = FORM_MAIL_TO.split(",").map((s) => s.trim());
+      const send = (mail: Record<string, unknown>) =>
+        fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ from: FORM_MAIL_FROM, ...mail }),
+          signal: AbortSignal.timeout(10000),
+        });
+
+      const res = await send({ to: inbox, reply_to: message.replyTo, subject: message.subject, text: message.text, html: message.html });
+      if (!res.ok) return "failed";
+
+      if (message.confirmation) {
+        const { to, ...rest } = message.confirmation;
+        try {
+          const ack = await send({ to: [to], reply_to: inbox[0], ...rest });
+          if (!ack.ok) console.error("[forms] confirmation rejected", ack.status, await ack.text());
+        } catch (error) {
+          console.error("[forms] confirmation failed", error);
+        }
+      }
+      return "sent";
     }
 
     if (FORM_WEBHOOK_URL) {
