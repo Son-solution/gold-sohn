@@ -1,4 +1,5 @@
 import "server-only";
+import { connection } from "next/server";
 import { demoSnapshot } from "./demo";
 import { getSwissquoteSnapshot, lastSwissquoteSnapshot } from "./swissquote";
 import { priceSnapshotSchema, type PriceSnapshot } from "./types";
@@ -48,6 +49,8 @@ const unavailable: PriceSnapshot = {
 };
 
 async function swissquote(): Promise<PriceSnapshot> {
+  // Live market data: render per request, never at build time.
+  await connection();
   try {
     return await getSwissquoteSnapshot();
   } catch (error) {

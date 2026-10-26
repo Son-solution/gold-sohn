@@ -1,7 +1,8 @@
 "use client";
 
 import { useId, useState, type FormEvent } from "react";
-import { InputField, TextareaField } from "./FormField";
+import { ArrowRight, Loader2 } from "lucide-react";
+import { FormTrust, InputField, TextareaField } from "./FormField";
 import { SubmitNotice, postForm, type SubmitState } from "./SubmitNotice";
 import { contactSchema, flattenErrors } from "@/lib/forms/schemas";
 
@@ -35,10 +36,16 @@ export function ContactForm() {
   const f = (name: keyof typeof v) => ({ id: `${uid}-${name}`, name, error: errors[name] });
 
   return (
-    <form onSubmit={onSubmit} noValidate className="relative flex flex-col gap-5 rounded-[24px] bg-white p-5 shadow-[0_50px_100px_-60px_rgba(100,75,35,.55),inset_0_0_0_1px_rgba(197,160,100,.32)] sm:rounded-[32px] sm:p-10">
+    <form onSubmit={onSubmit} noValidate aria-labelledby={`${uid}-title`} className="form-luxe flex flex-col gap-6 p-6 sm:p-11">
       <div aria-hidden className="absolute -left-[9999px] h-px w-px overflow-hidden">
         <label htmlFor={`${uid}-website`}>Website</label>
         <input id={`${uid}-website`} name="website" tabIndex={-1} autoComplete="off" value={v.website} onChange={(e) => set("website", e.target.value)} />
+      </div>
+      <div className="flex flex-col gap-3">
+        <span className="eyebrow">Kontaktformular</span>
+        <h2 id={`${uid}-title`} className="text-[26px] leading-tight sm:text-[34px]">
+          Schreiben Sie <em className="text-gold-ink">uns</em>
+        </h2>
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <InputField {...f("firstName")} label="Vorname" autoComplete="given-name" value={v.firstName} onChange={(e) => set("firstName", e.target.value)} />
@@ -48,8 +55,16 @@ export function ContactForm() {
         <TextareaField {...f("message")} className="sm:col-span-2" label="Ihre Nachricht" rows={5} value={v.message} onChange={(e) => set("message", e.target.value)} />
       </div>
       <div className="flex flex-col gap-1.5">
-        <label className="flex items-start gap-3 text-sm leading-relaxed text-ink-2">
-          <input type="checkbox" name="consent" checked={v.consent} onChange={(e) => set("consent", e.target.checked)} className="mt-0.5 size-5 shrink-0 accent-gold-deep" />
+        <label className="flex cursor-pointer items-start gap-3.5 text-sm leading-relaxed text-ink-2">
+          <input
+            type="checkbox"
+            name="consent"
+            checked={v.consent}
+            onChange={(e) => set("consent", e.target.checked)}
+            aria-invalid={errors.consent ? true : undefined}
+            aria-describedby={errors.consent ? `${uid}-consent-error` : undefined}
+            className="check-luxe"
+          />
           <span>
             Ich habe die{" "}
             <a href="/datenschutz/" className="underline">
@@ -58,12 +73,25 @@ export function ContactForm() {
             gelesen und bin mit der Verarbeitung meiner Angaben zur Beantwortung meiner Anfrage einverstanden.
           </span>
         </label>
-        {errors.consent ? <span className="field-error">{errors.consent}</span> : null}
+        {errors.consent ? (
+          <span id={`${uid}-consent-error`} className="field-error">
+            {errors.consent}
+          </span>
+        ) : null}
       </div>
-      <button type="submit" className="btn btn-gold self-start" disabled={submit.status === "sending"}>
-        {submit.status === "sending" ? "Wird gesendet …" : "Nachricht senden"}
+      <button type="submit" className="btn btn-gold sm:self-start" disabled={submit.status === "sending"}>
+        {submit.status === "sending" ? (
+          <>
+            Wird gesendet <Loader2 aria-hidden className="animate-spin" />
+          </>
+        ) : (
+          <>
+            Nachricht senden <ArrowRight aria-hidden />
+          </>
+        )}
       </button>
       <SubmitNotice state={submit} />
+      <FormTrust items={["Kostenlos & unverbindlich"]} />
     </form>
   );
 }

@@ -1,9 +1,9 @@
 "use client";
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Loader2, Package, Send, Truck, type LucideIcon } from "lucide-react";
 import { useId, useRef, useState, type FormEvent } from "react";
-import { InputField, TextareaField } from "./FormField";
+import { FormTrust, InputField, TextareaField } from "./FormField";
 import { SubmitNotice, postForm, type SubmitState } from "./SubmitNotice";
 import { flattenErrors, shippingMethodLabels, shippingMethods, shippingRequestSchema, type ShippingMethod } from "@/lib/forms/schemas";
 
@@ -12,6 +12,18 @@ const methodText: Record<ShippingMethod, string> = {
   selbstversand: "Sie versenden selbst, zum Beispiel per Einschreiben.",
   abholung: "Sie fragen eine Abholung Ihrer Edelmetalle an.",
 };
+
+const methodIcon: Record<ShippingMethod, LucideIcon> = {
+  versandtasche: Package,
+  selbstversand: Send,
+  abholung: Truck,
+};
+
+const steps = [
+  { numeral: "I", label: "Versandart" },
+  { numeral: "II", label: "Kontakt" },
+  { numeral: "III", label: "Adresse" },
+];
 
 const stepFields = {
   1: ["method", "premium"],
@@ -101,13 +113,38 @@ export function ShippingForm({ initialMethod = "versandtasche" }: { initialMetho
   };
 
   return (
-    <form ref={formRef} onSubmit={onSubmit} noValidate className="relative overflow-hidden rounded-[24px] bg-white p-5 shadow-[0_50px_100px_-60px_rgba(100,75,35,.55),inset_0_0_0_1px_rgba(197,160,100,.32)] sm:rounded-[32px] sm:p-10">
-      <div className="mb-6 flex items-center gap-4 sm:mb-8">
-        <span className="whitespace-nowrap text-xs uppercase tracking-[0.18em] text-ink-2">Schritt {step} von 3</span>
-        <div className="h-[3px] flex-1 overflow-hidden rounded-full bg-pearl" aria-hidden>
-          <motion.div className="h-full rounded-full bg-gold" animate={{ width: `${(step / 3) * 100}%` }} transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }} />
-        </div>
-      </div>
+    <form ref={formRef} onSubmit={onSubmit} noValidate className="form-luxe overflow-hidden p-6 sm:p-11">
+      <p className="sr-only" aria-live="polite">
+        Schritt {step} von 3: {steps[step - 1].label}
+      </p>
+      <ol aria-hidden className="mb-8 flex items-start sm:mb-10">
+        {steps.map((s, i) => {
+          const n = i + 1;
+          const done = n < step;
+          const active = n === step;
+          return (
+            <li key={s.numeral} className="relative flex flex-1 flex-col items-center gap-2.5">
+              {i > 0 ? (
+                <span className="absolute right-1/2 top-5 h-px w-[calc(100%-44px)] -translate-x-[22px] bg-pearl">
+                  <motion.span className="block h-full bg-gold" initial={false} animate={{ width: n <= step ? "100%" : "0%" }} transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }} />
+                </span>
+              ) : null}
+              <span
+                className={`flex size-10 items-center justify-center rounded-full font-serif text-[15px] italic transition-[background,box-shadow,color] duration-500 ${
+                  done
+                    ? "bg-gold text-[#241f19] shadow-[0_10px_20px_-12px_rgba(140,104,48,.8)]"
+                    : active
+                      ? "bg-white text-gold-ink shadow-[inset_0_0_0_1.5px_#C5A064,0_0_0_5px_rgba(197,160,100,.14)]"
+                      : "bg-white text-soft shadow-[inset_0_0_0_1px_#E6E3DF]"
+                }`}
+              >
+                {done ? <Check strokeWidth={2} className="size-4" /> : s.numeral}
+              </span>
+              <span className={`text-[10px] uppercase tracking-[0.18em] sm:text-[10.5px] ${active ? "font-medium text-gold-ink" : "text-ink-2"}`}>{s.label}</span>
+            </li>
+          );
+        })}
+      </ol>
 
       {/* Honeypot – hidden from people, filled by bots */}
       <div aria-hidden className="absolute -left-[9999px] h-px w-px overflow-hidden">
@@ -132,23 +169,37 @@ export function ShippingForm({ initialMethod = "versandtasche" }: { initialMetho
               <div role="radiogroup" aria-label="Versandart" className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
                 {shippingMethods.map((m) => {
                   const checked = v.method === m;
+                  const Icon = methodIcon[m];
                   return (
                     <label
                       key={m}
-                      className={`relative flex cursor-pointer flex-col gap-1.5 rounded-[18px] p-4 sm:gap-2 sm:rounded-[20px] sm:p-5 transition-[box-shadow,background,translate] duration-500 hover:-translate-y-0.5 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-gold-ink ${
-                        checked ? "bg-white shadow-[inset_0_0_0_1.5px_#C5A064,0_16px_30px_-20px_rgba(140,104,48,.6)]" : "bg-cream"
+                      className={`relative flex cursor-pointer flex-col gap-2 rounded-[18px] p-4 sm:gap-2.5 sm:rounded-[20px] sm:p-5 transition-[box-shadow,background,translate] duration-500 hover:-translate-y-0.5 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-gold-ink ${
+                        checked
+                          ? "bg-[linear-gradient(160deg,#fff_0%,#F6F1E8_100%)] shadow-[inset_0_0_0_1.5px_#C5A064,0_18px_34px_-22px_rgba(140,104,48,.65)]"
+                          : "bg-white shadow-[inset_0_0_0_1px_rgba(197,160,100,.3)] hover:shadow-[inset_0_0_0_1px_rgba(197,160,100,.7)]"
                       }`}
                     >
                       <input type="radio" name="method" value={m} checked={checked} onChange={() => set("method", m)} className="sr-only" />
-                      <b className="font-serif text-[20px] font-normal text-ink-strong">{shippingMethodLabels[m]}</b>
+                      <span className="mb-1 flex items-center justify-between">
+                        <span className={`flex size-10 items-center justify-center rounded-full transition-colors duration-500 ${checked ? "bg-gold text-[#241f19]" : "bg-cream text-gold-ink"}`}>
+                          <Icon aria-hidden strokeWidth={1.4} className="size-[18px]" />
+                        </span>
+                        <span aria-hidden className={`flex size-[18px] items-center justify-center rounded-full transition-shadow duration-500 ${checked ? "shadow-[inset_0_0_0_1.5px_#A8854B]" : "shadow-[inset_0_0_0_1px_#B9B6B0]"}`}>
+                          <span className={`size-2 rounded-full bg-gold-deep transition-[scale] duration-500 ${checked ? "scale-100" : "scale-0"}`} />
+                        </span>
+                      </span>
+                      <b className="font-serif text-[20px] font-normal leading-tight text-ink-strong">{shippingMethodLabels[m]}</b>
                       <small className="text-[13px] leading-snug text-ink-2">{methodText[m]}</small>
                     </label>
                   );
                 })}
               </div>
-              <label className="flex items-start gap-3 text-sm leading-relaxed text-ink-2">
-                <input type="checkbox" name="premium" checked={v.premium} onChange={(e) => set("premium", e.target.checked)} className="mt-0.5 size-5 shrink-0 accent-gold-deep" />
-                Ich benötige ein Premium-Paket, da meine Edelmetalle einen Wert über 500 € haben.
+              <label className="flex cursor-pointer items-start gap-3.5 rounded-[16px] bg-cream/70 p-4 text-sm leading-relaxed text-ink-2 shadow-[inset_0_0_0_1px_rgba(197,160,100,.22)]">
+                <input type="checkbox" name="premium" checked={v.premium} onChange={(e) => set("premium", e.target.checked)} className="check-luxe" />
+                <span>
+                  <b className="block font-medium text-ink-strong">Premium-Paket</b>
+                  Ich benötige ein Premium-Paket, da meine Edelmetalle einen Wert über 500 € haben.
+                </span>
               </label>
               <div className="flex justify-end">
                 <button type="button" className="btn btn-gold" onClick={() => validate(1) && go(2)}>
@@ -196,7 +247,7 @@ export function ShippingForm({ initialMethod = "versandtasche" }: { initialMetho
                     onChange={(e) => set("consent", e.target.checked)}
                     aria-invalid={errors.consent ? true : undefined}
                     aria-describedby={errors.consent ? `${uid}-consent-error` : undefined}
-                    className="mt-0.5 size-5 shrink-0 accent-gold-deep"
+                    className="check-luxe"
                   />
                   <span>
                     Ich stimme den{" "}
@@ -221,7 +272,15 @@ export function ShippingForm({ initialMethod = "versandtasche" }: { initialMetho
                   <ArrowLeft aria-hidden /> Zurück
                 </button>
                 <button type="submit" className="btn btn-gold" disabled={submit.status === "sending"}>
-                  {submit.status === "sending" ? "Wird gesendet …" : "Anfrage senden"}
+                  {submit.status === "sending" ? (
+                    <>
+                      Wird gesendet <Loader2 aria-hidden className="animate-spin" />
+                    </>
+                  ) : (
+                    <>
+                      Anfrage senden <ArrowRight aria-hidden />
+                    </>
+                  )}
                 </button>
               </div>
             </>
@@ -229,8 +288,9 @@ export function ShippingForm({ initialMethod = "versandtasche" }: { initialMetho
         </motion.div>
       </AnimatePresence>
 
-      <div className="mt-6">
+      <div className="mt-6 flex flex-col gap-6">
         <SubmitNotice state={submit} />
+        <FormTrust items={["Kostenlos & unverbindlich"]} />
       </div>
     </form>
   );

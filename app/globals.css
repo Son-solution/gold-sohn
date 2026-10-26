@@ -393,47 +393,159 @@ h4 {
   }
 
   /* Forms */
-  .field-label {
-    font-size: 12px;
-    font-weight: 500;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--color-ink-2);
+  /* Card: white sheet with a fine inner gold frame and a gilded top edge. */
+  .form-luxe {
+    position: relative;
+    border-radius: 24px;
+    background: linear-gradient(180deg, #fff 0%, #fffdf9 100%);
+    outline: 1px solid rgba(197, 160, 100, 0.2);
+    outline-offset: -10px;
+    box-shadow:
+      0 60px 110px -64px rgba(100, 75, 35, 0.6),
+      0 2px 6px -2px rgba(100, 75, 35, 0.08),
+      inset 0 0 0 1px rgba(197, 160, 100, 0.38);
+  }
+  .form-luxe::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 12%;
+    right: 12%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--color-gold), transparent);
+  }
+  @media (min-width: 640px) {
+    .form-luxe {
+      border-radius: 32px;
+      outline-offset: -12px;
+    }
+  }
+
+  /* Floating-label field: the label rests inside and lifts on focus or input. */
+  .field {
+    position: relative;
+  }
+  .field::after {
+    content: "";
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    bottom: 0;
+    height: 1.5px;
+    background: var(--color-gold);
+    scale: 0 1;
+    transition: scale 0.6s var(--ease-luxe);
+    pointer-events: none;
+  }
+  .field:focus-within::after {
+    scale: 1 1;
   }
   .field-input {
     width: 100%;
-    min-height: 54px;
-    padding: 0 18px;
+    min-height: 62px;
+    padding: 26px 18px 8px;
     border-radius: 14px;
     border: 0;
-    background: var(--color-cream);
-    box-shadow: inset 0 0 0 1px rgba(51, 51, 51, 0.06);
+    background: #fff;
+    box-shadow: inset 0 0 0 1px rgba(197, 160, 100, 0.4);
     font: inherit;
     font-size: 16px;
+    line-height: 1.4;
     color: var(--color-ink-strong);
     transition:
       box-shadow 0.4s,
       background 0.4s;
   }
   textarea.field-input {
-    padding: 14px 18px;
-    min-height: 110px;
+    padding-top: 30px;
+    min-height: 130px;
     resize: vertical;
+  }
+  .field-input:hover {
+    box-shadow: inset 0 0 0 1px rgba(197, 160, 100, 0.7);
   }
   .field-input:focus {
     outline: none;
-    background: #fff;
     box-shadow:
-      inset 0 0 0 1.5px var(--color-gold),
-      0 0 0 6px rgba(197, 160, 100, 0.15);
+      inset 0 0 0 1px var(--color-gold),
+      0 0 0 5px rgba(197, 160, 100, 0.13);
+  }
+  .field-input:-webkit-autofill {
+    -webkit-text-fill-color: var(--color-ink-strong);
+    box-shadow:
+      inset 0 0 0 1px rgba(197, 160, 100, 0.4),
+      inset 0 0 0 100px #fffbf3;
+  }
+  .field-label {
+    position: absolute;
+    left: 19px;
+    top: 20px;
+    max-width: calc(100% - 38px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 15.5px;
+    line-height: 1.4;
+    color: rgba(74, 69, 63, 0.85);
+    pointer-events: none;
+    transition:
+      top 0.45s var(--ease-luxe),
+      font-size 0.45s var(--ease-luxe),
+      letter-spacing 0.45s var(--ease-luxe),
+      color 0.3s;
+  }
+  .field-input:focus + .field-label,
+  .field-input:not(:placeholder-shown) + .field-label,
+  .field-input:-webkit-autofill + .field-label {
+    top: 9px;
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-gold-ink);
   }
   .field-input[aria-invalid="true"] {
-    background: #fbf4f2;
-    box-shadow: inset 0 0 0 1.5px #a0473a;
+    background: #fdf8f6;
+    box-shadow: inset 0 0 0 1px #a0473a;
+  }
+  .field-input[aria-invalid="true"] + .field-label {
+    color: var(--color-danger);
   }
   .field-error {
+    padding-left: 4px;
     font-size: 13px;
     color: var(--color-danger);
+  }
+
+  /* Gold checkbox */
+  .check-luxe {
+    appearance: none;
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    margin-top: 2px;
+    border-radius: 6px;
+    background: #fff center / 13px no-repeat;
+    box-shadow: inset 0 0 0 1px rgba(168, 133, 75, 0.7);
+    cursor: pointer;
+    transition:
+      background-color 0.3s,
+      box-shadow 0.3s;
+  }
+  .check-luxe:hover {
+    box-shadow: inset 0 0 0 1.5px var(--color-gold-deep);
+  }
+  .check-luxe:checked {
+    background-color: var(--color-gold);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23241f19' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+    box-shadow: inset 0 0 0 1px var(--color-gold-deep);
+  }
+  .check-luxe:focus-visible {
+    outline: 2px solid var(--color-gold-ink);
+    outline-offset: 2px;
+  }
+  .check-luxe[aria-invalid="true"] {
+    box-shadow: inset 0 0 0 1.5px #a0473a;
   }
 
   .prose-luxe p {
